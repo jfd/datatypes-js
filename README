@@ -5,7 +5,7 @@ datatype-js
 Byte encoder and decoder for typical datatypes implemented in Javascript.
 
 INTRODUCTION 
-The primary goal for this library is to make life easier for does who want to 
+The primary goal for this library is to make life easier for those who want to 
 work with binary datatypes in Javascript. 
 
 The library is fully compatible with the ECMA-standard, without any
