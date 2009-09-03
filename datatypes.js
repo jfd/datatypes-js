@@ -20,6 +20,16 @@ var OPTION = 'option',
 var FLEX_DATASIZE = -2;
 var DEFINED_DATASIZE = -1;
 
+// Predefined datatypes
+var DATATYPES = [
+    ['byte'     , 1],
+    ['bytes'    , DEFINED_DATASIZE],
+    ['int16'    , 2, 'choice'],
+    ['int32'    , 4, 'choice'],
+    ['string8'  , DEFINED_DATASIZE],
+    ['cstring'  , FLEX_DATASIZE]
+];
+
 // Converts ´´arguments´´ into an array.
 function get_array(args) {
     return Array.prototype.slice.call(args);
@@ -137,15 +147,13 @@ var ARRAY = option(
 );
 
 // Initializes a new BufferPoint instance.
-function BufferPointer(buffer, pos, datasize, big_endian) {
+function BufferPointer(pos, buffer_length) {
     this.pos = pos;
-    this.fixedsize = datasize > 0 ? pos + datasize : null;
-    this.length = buffer.length;
-    this.big_endian = big_endian;
+    this.length = buffer_length;
 }
 
 BufferPointer.prototype = {
-    eof: function() { return this.pos > (this.fixedsize || this.length);},
+    eof: function() { return !(this.pos < this.length) },
     next: function() { return this.pos++ },
 }
 
@@ -232,22 +240,22 @@ var DECODERS = {
     },
     
     // Returns an int16 decoder based on the bigendian option
-    get_int16: function(v, opts) {
+    get_int16: function(b, pt, l, opts) {
         return opts.little_endian ? DECODERS.int16l : DECODERS.int16;
     },
     
     // Decodes an Int16 in big-endian format.
-    int16: function(b, p) {
+    int16: function(b, pt) {
         return (b[pt.pos++] << 8) | (b[pt.pos++]);
     },
     
     // Decodes an Int16 in little-endian format.
-    int16i: function(b, p) {
+    int16l: function(b, pt) {
         return (b[pt.pos++]) | (b[pt.pos++] << 8);
     },
 
     // Returns an int32 decoder based on the bigendian option
-    get_int32: function(v, opts) {
+    get_int32: function(b, pt, l, opts) {
         return opts.little_endian ? DECODERS.int32l : DECODERS.int32;
     },
 
@@ -281,43 +289,6 @@ var DECODERS = {
     }
 }
 
-function decode(dt, buffer, pt, length) {
-    var decoder = DECODERS[dt.id];
-    var result = decoder(buffer, pt.index, length);
-    pt.index = result.index;
-    return result.result;
-}
-
-// Predefined datatypes
-var DATATYPES = [
-    ['byte'     , 1],
-    ['bytes'    , DEFINED_DATASIZE],
-    ['int16'    , 2, 'choice'],
-    ['int32'    , 4, 'choice'],
-    ['string8'  , DEFINED_DATASIZE],
-    ['cstring'  , FLEX_DATASIZE]
-];
-
-
-// Define, construct and export predefined datatypes
-(function() {
-    var l = DATATYPES.length;    
-    while(l-- > 0) {
-        var type = DATATYPES[l];
-        var name = type[0];
-        var size = type[1];
-        var prefix = '';
-        var ctor_args = [size];
-        if(type[2] == 'choice') {
-            prefix = 'get_';
-            ctor_args.push('choice');  
-        } 
-        ctor_args.push(ENCODERS[prefix + name]);
-        ctor_args.push(DECODERS[prefix + name]);
-        self[name.toUpperCase()] = define.apply(null, ctor_args);
-    }
-})();
-
 // Encodes Javascript objects into a byte-array.
 function encode() {
     var args = get_array(arguments), result = [], options = { };
@@ -345,29 +316,85 @@ function encode() {
     return result;
 }
 
+// Decodes a set of bytes into a javascript object.
+function decode_dt(dt, buffer, pt, length, opts) {
+    var decoder = dt.choose_callback ? 
+                  dt.decoder(buffer, pt, length, opts) :
+                  dt.decoder;
+    return decoder(buffer, pt, length, opts);
+}
+
+// Decodes an byte-array into Javascript objects.
 function decode() {
-    var args = Array.prototype.slice.call(arguments);
-        buffer = args.shift(), result = {}, pt = { index: 0 };
+    var args = get_array(arguments), result = {}, options = {};
+    var buffer = args.shift(), pt = new BufferPointer(0, buffer.length);
     while(args.length > 0) {
-        var first = args.shift(), sec = args.shift(), third, length, data, index = 0;
-        if(sec._dt) {
-            third = args.shift();
-            length = first._dt ? decode(first, buffer, pt) : first;
-            result[third] = decode(sec, buffer, pt, length);
-        } else {
-            result[sec] = decode(first, buffer, pt);
+        var first = args.shift(), second, field, decoder, dtresult;
+        switch(first._dtclass) {
+            case OPTION:
+                var array_result = options.array_result;
+                if(first.decoder_callback) first.decoder_callback(options);
+                if(options.array_result != array_result) {
+                    result = options.array_result ? [] : {};
+                }
+                break;
+            case STRUCT:
+                throw "Structs are not currently supported by decoder.";
+                break;
+            case DATATYPE:
+            default:
+                if(args[0].size == DEFINED_DATASIZE) {
+                    // Expect a number representing the size
+                    // of the datatype
+                    if(first._dtclass == DATATYPE) {
+                        // Parse size from member
+                        first = decode_dt(first, buffer, pt, length, options);
+                    } 
+                    second = args.shift();
+                    dtresult = decode_dt(second, buffer, pt, first, options);
+                } else {
+                    dtresult = decode_dt(first, buffer, pt, first.size, options);
+                }
+                if(options.array_result) {
+                    result.push(dtresult);
+                } else {
+                    field = args.shift();
+                    if(field.constructor !== String) throw "Expected named field";
+                    result[field] = dtresult;
+                }
+                break;
         }
     }
     return result;
 }
 
 // Export public members
+(function() {
+    var l = DATATYPES.length;    
+    while(l-- > 0) {
+        var type = DATATYPES[l];
+        var name = type[0];
+        var size = type[1];
+        var prefix = '';
+        var ctor_args = [size];
+        if(type[2] == 'choice') {
+            prefix = 'get_';
+            ctor_args.push('choice');  
+        } 
+        ctor_args.push(ENCODERS[prefix + name]);
+        ctor_args.push(DECODERS[prefix + name]);
+        self[name.toUpperCase()] = define.apply(null, ctor_args);
+    }
+})();
+
 self.BIG_ENDIAN = BIG_ENDIAN;
 self.LITTLE_ENDIAN = LITTLE_ENDIAN;
 self.DICT = DICT;
 self.ARRAY = ARRAY;
 self.FLEX_DATASIZE = FLEX_DATASIZE;
 self.DEFINED_DATASIZE = DEFINED_DATASIZE;
+self.ENCODERS = ENCODERS;
+self.DECODERS = DECODERS;
 self.define = define;
 self.option = option;
 self.encode = encode;
