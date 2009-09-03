@@ -343,6 +343,7 @@ function decode() {
                 break;
             case DATATYPE:
             default:
+                if(args[0] == undefined) throw "Expected Datatype";
                 if(args[0].size == DEFINED_DATASIZE) {
                     // Expect a number representing the size
                     // of the datatype
