@@ -1,6 +1,6 @@
 - Some real-world examples where datatypes-js can be used.
 - Implement STRUCTs
 - Add more comments to code
-- Cover all features in the README.
-- Datatypes: UTF8 Strings
+- Cover all library specific features in README.
+- Support for UTF8 Strings
 - More testing!! 
