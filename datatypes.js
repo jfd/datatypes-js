@@ -83,20 +83,21 @@ function define() {
 }
 
 // Defines a new data structure. A datastructure is a set of datatypes, with
-// compiled encoders and decoders.
+// a compiled call sequence to encoders and decoders.
 function struct() {
-    // TODO    
 }
 
 // Defines a new option. An option can give user-defined instructions while 
-// encoding and decoding datatypes. The option function takes two callback. The
-// first callback is called when encoding a buffer, and second while decoding
-// buffer.
+// encoding and decoding datatypes. The option function takes one callback 
+// function.
 //
-// Both callback's takes one argument. The argument is an option set,
-// used by current encoder/decoder.
+// The callback function takes two arguments. The first argument is an option 
+// set, used by current encoder/decoder. The second argument is a String that
+// represents the current mode. There is three modes: ´´encode´´, ´´decode´´ and 
+// ´´struct´´. THe option parser can choose to handle the request differently 
+// based on which mode.
 //
-//      function(options) { 
+//      function(options, mode) { 
 //          options.my_option = 1234 
 //      }
 //
@@ -104,40 +105,35 @@ function struct() {
 //
 // Built-in datatype's encoder's/decoder's ignores this option set. 
 //
-function option(enc_callback, dec_callback) {
+function option(callback) {
     return {
         _dtclass: OPTION,
-        encoder_callback: enc_callback,
-        decoder_callback: dec_callback
+        callback: callback
     }
 }
 
 // Define's the BIG_ENDIAN option. This option sets the buffer byte-order to 
 // big-endian.
-var BIG_ENDIAN = option( 
-    function(opts) { opts.little_endian = false }, 
-    function(opts) { opts.little_endian = false } 
-);
+var BIG_ENDIAN = option( function(opts) { opts.little_endian = false } );
 
 // Define's the LITTLE_ENDIAN option. This option sets the buffer byte-order to 
 // little-endian.
-var LITTLE_ENDIAN = option( 
-    function(opts) { opts.little_endian = true }, 
-    function(opts) { opts.little_endian = true } 
-);
+var LITTLE_ENDIAN = option( function(opts) { opts.little_endian = true } );
 
 // Define's the DICT option. This option tell's the decoder to return a dict
 // with the decoded values.
 var DICT = option(
-    null,
-    function(opts) { opts.array_result = false }
+    function(opts, mode) { 
+        if(mode == 'decode') opts.array_result = false;
+    }
 );
 
 // Define's the ARRAY option. This option tell's the decoder to return an array
 // with decoded values.
 var ARRAY = option(
-    null,
-    function(opts) { opts.array_result = true }
+    function(opts, mode) { 
+        if(mode == 'decode') opts.array_result = true;
+    }
 );
 
 // Initializes a new BufferPoint instance.
@@ -290,7 +286,7 @@ function encode() {
         var first = args.shift(), second, encoder;
         switch(first._dtclass) {
             case OPTION:
-                if(first.encoder_callback) first.encoder_callback(options);
+                first.callback(options, 'encode');
                 break;
             case DATATYPE:
                 second = args.shift();
@@ -327,7 +323,7 @@ function decode() {
         switch(first._dtclass) {
             case OPTION:
                 var array_result = options.array_result;
-                if(first.decoder_callback) first.decoder_callback(options);
+                first.callback(options, 'decode');
                 if(options.array_result != array_result) {
                     result = options.array_result ? [] : {};
                 }
