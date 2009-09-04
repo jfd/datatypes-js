@@ -20,15 +20,9 @@ var OPTION = 'option',
 var FLEX_DATASIZE = -2;
 var DEFINED_DATASIZE = -1;
 
-// Predefined datatypes
-var DATATYPES = [
-    ['byte'     , 1],
-    ['bytes'    , DEFINED_DATASIZE],
-    ['int16'    , 2, 'choice'],
-    ['int32'    , 4, 'choice'],
-    ['string8'  , DEFINED_DATASIZE],
-    ['cstring'  , FLEX_DATASIZE]
-];
+// Collections of datatypes and other constants.
+var DATATYPES = {},
+    CONSTANTS = {}
 
 // Converts ´´arguments´´ into an array.
 function get_array(args) {
@@ -368,12 +362,41 @@ function decode() {
     return result;
 }
 
-// Export public members
+// Exports all constants such as datatypes and options to the provided scope.
+function export_to(scope) {
+    var s = scope || {}, l = constants.length;
+    // node.debug(DATATYPES.length)
+    for(var name in DATATYPES) s[name] = DATATYPES[name]; 
+    for(var name in CONSTANTS) s[name] = CONSTANTS[name];
+    return s;
+}
+
+// Predefined datatype definitions 
+var defs = [
+    ['byte'     , 1],
+    ['bytes'    , DEFINED_DATASIZE],
+    ['int16'    , 2, 'choice'],
+    ['int32'    , 4, 'choice'],
+    ['string8'  , DEFINED_DATASIZE],
+    ['cstring'  , FLEX_DATASIZE]
+];
+
+// Contants and members that should be exported to the public.
+var constants = [
+    ['FLEX_DATASIZE', FLEX_DATASIZE], ['DEFINED_DATASIZE', DEFINED_DATASIZE], 
+    ['DATATYPES', DATATYPES], ['CONSTANTS', CONSTANTS], 
+    ['BIG_ENDIAN', BIG_ENDIAN], ['LITTLE_ENDIAN', LITTLE_ENDIAN], 
+    ['ARRAY', ARRAY], ['DICT', DICT], ['ENCODERS', ENCODERS], 
+    ['DECODERS', DECODERS]
+];
+
+// Export constants and objects to the public scope. 
 (function() {
-    var l = DATATYPES.length;    
-    while(l-- > 0) {
-        var type = DATATYPES[l];
+    var dtindex = defs.length, cindex = constants.length;
+    while(dtindex-- > 0) {
+        var type = defs[dtindex];
         var name = type[0];
+        var uname = name.toUpperCase();
         var size = type[1];
         var prefix = '';
         var ctor_args = [size];
@@ -383,22 +406,21 @@ function decode() {
         } 
         ctor_args.push(ENCODERS[prefix + name]);
         ctor_args.push(DECODERS[prefix + name]);
-        self[name.toUpperCase()] = define.apply(null, ctor_args);
+        DATATYPES[uname] = self[uname] = define.apply(null, ctor_args);
     }
+    while(cindex-- > 0) {
+        var name = constants[cindex][0];
+        var val = constants[cindex][1];
+        CONSTANTS[name] = self[name] = val;
+    }    
 })();
 
-self.BIG_ENDIAN = BIG_ENDIAN;
-self.LITTLE_ENDIAN = LITTLE_ENDIAN;
-self.DICT = DICT;
-self.ARRAY = ARRAY;
-self.FLEX_DATASIZE = FLEX_DATASIZE;
-self.DEFINED_DATASIZE = DEFINED_DATASIZE;
-self.ENCODERS = ENCODERS;
-self.DECODERS = DECODERS;
+// Export functions
 self.define = define;
 self.option = option;
 self.encode = encode;
 self.decode = decode;
+self.export_to = export_to;
 
 
 })(datatypes);
