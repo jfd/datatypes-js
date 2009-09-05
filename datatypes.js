@@ -14,11 +14,15 @@ try{ datatypes = exports } catch(e) {}; // Try to export the lib for node.js
 // determind by reading the _dtclass property.
 var OPTION = 'option',
     DATATYPE = 'datatype',
-    STRUCT = 'struct';
+    STRUCT = 'struct',
+    POINTER = 'pointer';
 
 // Special data sizes. 
 var FLEX_DATASIZE = -2;
 var DEFINED_DATASIZE = -1;
+
+// Struct-related constants
+var DYNAMIC = { _dtstruct: 'dynamic' };
 
 // Collections of datatypes and other constants.
 var DATATYPES = {},
@@ -82,9 +86,131 @@ function define() {
     }
 }
 
+// Helper fucntion for the struct constructor. Returns a new constant field.
+function const_field(dt, name, value, opts) {
+    var encoder = dt.choose_callback ? dt.encoder(null, opts) : dt.encoder,
+        decoder = dt.choose_callback ? dt.decoder(null, null, null, opts) : dt.decoder;
+    var decode, bytes = encoder(value, opts);
+    
+    var encode = function(values) {
+        return bytes;
+    }
+    
+    if(opts.no_error_check) {
+        decode = function(buffer, pt) {
+            pt.pos += bytes.length;
+        }
+    } else {
+        decode = function(buffer, pt) {
+            var result = decoder(buffer, pt, dt.size, opts);
+            if(result != value) throw 'Decoding error: Struct[' + name + '] constant value does not match';
+            return result;
+        }
+    }
+    
+    return {
+        name: name,
+        encode_a: encode, 
+        encode_d: encode,
+        decode: decode
+    }
+}
+
+// Helper fucntion for the struct constructor. Returns a new dynamic field.
+function dynamic_field(dt, name, opts) {
+    var encoder = dt.choose_callback ? dt.encoder(null, opts) : dt.encoder,
+        decoder = dt.choose_callback ? dt.decoder(null, null, null, opts) : dt.decoder;
+    
+    var encode_a = function(values) {
+        var value = values.shift();
+        return encoder(value, opts);
+    }
+
+    var encode_d = encoder;
+    
+    var decode = function(buffer, pt) {
+        var result = decoder(buffer, pt, dt.size, opts);
+        return result;
+    }
+    
+    return {
+        name: name,
+        encode_a: encode_a, 
+        encode_d: encode_d, 
+        decode: decode,
+    }    
+}
+
 // Defines a new data structure. A datastructure is a set of datatypes, with
 // a compiled call sequence to encoders and decoders.
 function struct() {
+    var args = get_array(arguments);
+    var first, second, options = {}, fields = [];
+    while(args.length) {
+        first = args.shift();
+        switch(first._dtclass) {
+            case OPTION:
+                first.callback(options, 'struct');
+                break;
+            case DATATYPE:
+            case STRUCT:
+                second = args.shift();
+                if(second._dtstruct == 'dynamic') {
+                    fields.push(dynamic_field(first, args.shift(), options));
+                } else {
+                    fields.push(const_field(first, '_index' + fields.length, second, options));
+                }
+                break;
+            default:
+                throw "Unexpected value at " + fields.length;
+        }
+    }
+    
+    function datastruct() {
+        var args = get_array(arguments);
+        return args.length == 1 && args[0].constructor != Array ?
+               datastruct.from_dict(args[0]) :
+               datastruct.from_array(args);
+    }
+    
+    datastruct.from_array = function(values) {
+        var result = [], l = fields.length;
+        for(var i = 0; i < l; i++) {
+            result = result.concat(fields[i].encode_a(values));
+        }
+        return result;
+    }
+    
+    datastruct.from_dict = function(values) {
+        var result = [], l = fields.length;
+        for(var i = 0; i < l; i++) {
+            var field = fields[i];
+            var value = values[field.name];
+            result = result.concat(field.encode_d(value));
+        }
+        return result;
+    }
+    
+    datastruct.to_array = function(buffer, pt) {
+        var pt = pt || new BufferPointer(0, buffer.length),
+            result = [],l = fields.length;
+        for(var i = 0; i < l; i++) {
+            result.push(fields[i].decode(buffer, pt));
+        }
+        return result;
+    }
+    
+    datastruct.to_dict = function(buffer, pt) {
+        var pt = pt || new BufferPointer(0, buffer.length),
+            result = {}, field, l = fields.length;
+        for(var i = 0; i < l; i++) {
+            field = fields[i];
+            result[field.name] = field.decode(buffer, pt);
+        }
+        return result;
+    }
+    
+    return datastruct;
 }
 
 // Defines a new option. An option can give user-defined instructions while 
@@ -120,6 +246,16 @@ var BIG_ENDIAN = option( function(opts) { opts.little_endian = false } );
 // little-endian.
 var LITTLE_ENDIAN = option( function(opts) { opts.little_endian = true } );
 
+// Define's the NO_ERROR_CHECK option. This options is only valid on STRUCTS. 
+// This option will ignore to read all constant fields. The fields will not 
+// be matched against the original value. This option makes reading faster but
+// less accurate. 
+var NO_ERROR_CHECK = option( 
+    function(opts, mode) { 
+        if(mode == 'struct') opts.no_error_check = true;
+    } 
+);
+
 // Define's the DICT option. This option tell's the decoder to return a dict
 // with the decoded values.
 var DICT = option(
@@ -143,6 +279,7 @@ function BufferPointer(pos, buffer_length) {
 }
 
 BufferPointer.prototype = {
+    _dtclass: POINTER,
     eof: function() { return !(this.pos < this.length) },
     next: function() { return this.pos++ },
 }
@@ -225,8 +362,8 @@ var DECODERS = {
     bytes: function(buffer, pointer, length) {
         if(length == 1) return buffer[pointer.pos++];
         var pos = pointer.pos;
-        pointer.pos += pos + length;
-        return buffer.slice(i, length);
+        pointer.pos += length;
+        return buffer.slice(pos, length);
     },
     
     // Returns an int16 decoder based on the bigendian option
@@ -272,7 +409,7 @@ var DECODERS = {
     // Decodes an 8-bit char null-terminated string.
     cstring: function(b, pt) {
         var result = [], bl = b.length, v;
-        while(pt.pos < bl && (v = b[bt.pos++]) != 0) {
+        while(pt.pos < bl && (v = b[pt.pos++]) != 0) {
             result.push(String.fromCharCode(v));
         }
         return result.join('');
@@ -296,7 +433,7 @@ function encode() {
                 result = result.concat(encoder(second, options));
                 break;
             case STRUCT:
-                // TODO
+                result = result.concat(first(second.shift()));
                 break;
             default:
                 throw "Expected datatype, struct or option";
@@ -321,15 +458,20 @@ function decode() {
     while(args.length > 0) {
         var first = args.shift(), second, field, decoder, dtresult;
         switch(first._dtclass) {
+            case POINTER:
+                pt = first;
+                continue;
             case OPTION:
                 var array_result = options.array_result;
                 first.callback(options, 'decode');
                 if(options.array_result != array_result) {
                     result = options.array_result ? [] : {};
                 }
-                break;
+                continue;
             case STRUCT:
-                throw "Structs are not currently supported by decoder.";
+                dtresult = options.array_result ? 
+                                first.to_array(buffer, pt) :
+                                first.to_dict(buffer, pt);
                 break;
             case DATATYPE:
             default:
@@ -345,14 +487,14 @@ function decode() {
                 } else {
                     dtresult = decode_dt(first, buffer, pt, first.size, options);
                 }
-                if(options.array_result) {
-                    result.push(dtresult);
-                } else {
-                    field = args.shift();
-                    if(field.constructor !== String) throw "Expected named field";
-                    result[field] = dtresult;
-                }
                 break;
+        }
+        if(options.array_result) {
+            result.push(dtresult);
+        } else {
+            field = args.shift();
+            if(field.constructor !== String) throw "Expected named field";
+            result[field] = dtresult;
         }
     }
     return result;
@@ -361,7 +503,6 @@ function decode() {
 // Exports all constants such as datatypes and options to the provided scope.
 function export_to(scope) {
     var s = scope || {}, l = constants.length;
-    // node.debug(DATATYPES.length)
     for(var name in DATATYPES) s[name] = DATATYPES[name]; 
     for(var name in CONSTANTS) s[name] = CONSTANTS[name];
     return s;
@@ -383,7 +524,8 @@ var constants = [
     ['DATATYPES', DATATYPES], ['CONSTANTS', CONSTANTS], 
     ['BIG_ENDIAN', BIG_ENDIAN], ['LITTLE_ENDIAN', LITTLE_ENDIAN], 
     ['ARRAY', ARRAY], ['DICT', DICT], ['ENCODERS', ENCODERS], 
-    ['DECODERS', DECODERS]
+    ['DECODERS', DECODERS], ['DYNAMIC', DYNAMIC], 
+    ['NO_ERROR_CHECK', NO_ERROR_CHECK]
 ];
 
 // Export constants and objects to the public scope. 
@@ -416,6 +558,7 @@ self.define = define;
 self.option = option;
 self.encode = encode;
 self.decode = decode;
+self.struct = struct;
 self.export_to = export_to;
 
 
