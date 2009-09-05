@@ -169,7 +169,7 @@ option:
 		ARRAY,
 		
 		// Because we decode the result into an array, we do not need to declare 
-		// a names.
+		// any names for the fields.
 		INT32, INT16, CSTRING
 	);
 	
