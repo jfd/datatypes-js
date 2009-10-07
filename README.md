@@ -1,10 +1,9 @@
-
-
 datatype-js
+===========
 
 Byte encoder and decoder for typical datatypes implemented in Javascript.
 
-INTRODUCTION 
+## Introduction 
 The primary goal for this library is to make life easier for those who want to 
 work with binary datatypes in Javascript. 
 
@@ -14,8 +13,7 @@ requirements of third-party libraries.
 Note: All examples bellow is written for nodejs (http://tinyclouds.org/node/).
 
 
-
-A QUICK EXAMPLE
+## A Quick Example
 Here is a quick example what datatype-js can do:
 
 	include('datatypes.js');
@@ -34,17 +32,16 @@ Here is a quick example what datatype-js can do:
 
 
 
-
-BUILT-IN DATATYPES
+## Built-in Datatypes
 The library has a set of pre-defined decoders and encoders for the most regular
 datatypes. Each datatype is represented by a constant. Here is a list with 
 currently pre-defined datatypes:
 
-	BYTE  - A byte value.
-	BYTES - An array with one or more bytes.
-	INT16 - An 2-byte integer.
-	INT32 - An 2-byte integer.
-	CSTRING - A null-terminated string. 
+- **BYTE**, A byte value.
+- **BYTES**, An array with one or more bytes.
+- **INT16**, An 2-byte integer.
+- **INT32**, An 2-byte integer.
+- **CSTRING**, A null-terminated string. 
 
 It's easy to define your own encoder/decoder if you are missing a datatype. To 
 do so you can simple call the ´´define´´ function: 
@@ -75,18 +72,18 @@ Actually, the example above is the INT16 datatype.
 
 There is three valid sizes to use:
 
-	positive integer 	- Set's a fixed size. The encoder MUST always return an 
-					   	  byte-array with the length equal to the specified size.
-	DEFINED_DATASIZE 	- The size is defined by user. For example, the BYTES 
-						  uses a defined data size.
-	FLEX_DATASIZE		- The data size is flexible. The actual size is 
-						  controlled by the datatype. The CSTRING type for 
-						  example, uses an flexible data size. The null-
-						  terminator indicates where to stop reading the buffer.
+- **positive integer**, Set's a fixed size. The encoder MUST always return an 
+						byte-array with the length equal to the specified size.
+- **DEFINED_DATASIZE**, The size is defined by user. For example, the BYTES uses a 
+						defined data size.
+- **FLEX_DATASIZE**, 	The data size is flexible. The actual size is 
+						controlled by the datatype. The CSTRING type for 
+						example, uses an flexible data size. The null-
+						terminator indicates where to stop reading the buffer.
 
 
 
-ENCODING JAVASCRIPT-OBJECTS INTO BYTES.
+#Encoding Javascript-Objects Into Bytes.
 For our first example, we will encode a set of number into a byte array. 
 
 	include('datatypes.js');
@@ -127,15 +124,14 @@ specifying a built-in encoding option:
 There is currently two built-in options that is supported by the encode 
 function. These options are: 
 
-	- BIG_ENDIAN (default), encodes supported datatypes in the the big-endian 
-	  byte-order format.
-	- LITTLE_ENDIAN, encodes supported datatypes in the the little-endian 
-	  byte-order format.
+- BIG_ENDIAN (default), encodes supported datatypes in the the big-endian 
+  byte-order format.
+- LITTLE_ENDIAN, encodes supported datatypes in the the little-endian 
+  byte-order format.
 
 
 
-
-DECODING BYTES INTO JAVASCRIPT-OBJECTS	
+## Decoding Bytes Into Javascript-Objects	
 To decode the newly buffer, we simply call the decode function:
 
 	var result = decode(
@@ -180,10 +176,10 @@ option:
 There is currently two built-in options that is supported by the decode 
 function. These options are:
 
-	- DICT (default), decodes the result into a dict.
-	- ARRAY, decodes the result into an array of values
-	- BIG_ENDIAN (default), decodes supported datatypes in the the big-endian 
-	  byte-order format.
-	- LITTLE_ENDIAN, decodes supported datatypes in the the little-endian 
-	  byte-order format.
+- DICT (default), decodes the result into a dict.
+- ARRAY, decodes the result into an array of values
+- BIG_ENDIAN (default), decodes supported datatypes in the the big-endian 
+  byte-order format.
+- LITTLE_ENDIAN, decodes supported datatypes in the the little-endian 
+  byte-order format.
 	
