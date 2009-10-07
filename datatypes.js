@@ -500,14 +500,6 @@ function decode() {
     return result;
 }
 
-// Exports all constants such as datatypes and options to the provided scope.
-function export_to(scope) {
-    var s = scope || {}, l = constants.length;
-    for(var name in DATATYPES) s[name] = DATATYPES[name]; 
-    for(var name in CONSTANTS) s[name] = CONSTANTS[name];
-    return s;
-}
-
 // Predefined datatype definitions 
 var defs = [
     ['byte'     , 1],
@@ -560,6 +552,7 @@ self.encode = encode;
 self.decode = decode;
 self.struct = struct;
 self.export_to = export_to;
-
+self.DATATYPES = DATATYPES;
+self.CONSTANTS = CONSTANTS;
 
 })(datatypes);
