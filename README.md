@@ -46,8 +46,9 @@ currently pre-defined datatypes:
 It's easy to define your own encoder/decoder if you are missing a datatype. To 
 do so you can simple call the ´´define´´ function: 
 
-	include('datatypes.js');
-	
+	// Import library
+	node.mixin(require('../datatypes.js'));
+
 	// Define a custom 2-byte datatype.
 	var MY_DATATYPE = define(
 		
@@ -86,7 +87,9 @@ There is three valid sizes to use:
 #Encoding Javascript-Objects Into Bytes.
 For our first example, we will encode a set of number into a byte array. 
 
-	include('datatypes.js');
+	// Import libraries
+	node.mixin(require('/utils.js'));
+	node.mixin(require('../datatypes.js'));
 	
 	var buffer = encode(
 	
@@ -105,7 +108,9 @@ trained eye might see the byte-order for the integers. The function encodes
 numbers in the big-endian byte-order format. However, this can be changed by 
 specifying a built-in encoding option:
 
-	include('datatypes.js');
+	// Import libraries
+	node.mixin(require('/utils.js'));
+	node.mixin(require('../datatypes.js'));
 
 	var buffer = encode(
 		
@@ -134,6 +139,10 @@ function. These options are:
 ## Decoding Bytes Into Javascript-Objects	
 To decode the newly buffer, we simply call the decode function:
 
+	// Import libraries
+	node.mixin(require('/utils.js'));
+	node.mixin(require('../datatypes.js'));
+
 	var result = decode(
 		
 		// The buffer to decode
@@ -155,6 +164,10 @@ The example above, as noticed, will return a dict with the values in the
 buffer. The decode function returns a result dict as default. The second choice 
 is to encode the values to a plain array. To do so, we need to define an decoding
 option:
+
+	// Import libraries
+	node.mixin(require('/utils.js'));
+	node.mixin(require('../datatypes.js'));
 
 	var result = decode(
 		
