@@ -3,7 +3,13 @@
 //  Basic encoding and decoding examples
 //
 var datatypes = require('../datatypes.js');
-datatypes.export_to(this);
+
+// Import utils
+node.mixin(require("/utils.js"));
+
+// Import all predefined datatypes and constants.
+node.mixin(datatypes.DATATYPES);
+node.mixin(datatypes.CONSTANTS);
 
 // Variables used in this examples
 var bytes, value;

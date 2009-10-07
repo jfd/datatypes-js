@@ -2,17 +2,20 @@
 //
 //  A small example that show how to use struct's.
 //
-var datatypes = require('../datatypes.js');
 
+// Import all predefined datatypes and constants.
+node.mixin(require("../datatypes.js"));
+
+// Import utils
+node.mixin(require("/utils.js"));
+
+// Demo constants
 var MAGIC = 0x12344356;
 var VERSION = 0x1235;
 
-// Import constants to global scope
-datatypes.export_to(this);
-
 // Define a new struct.  We are using the big endian format and ignores any 
 // constant decoding errors.
-var STRUCT_A = datatypes.struct(
+var STRUCT_A = struct(
     
     // Options
     BIG_ENDIAN,
