@@ -545,14 +545,20 @@ var constants = [
     }    
 })();
 
+// Exports all constants such as datatypes and options to the provided scope.
+(function(to) {
+    for(var name in DATATYPES) to[name] = DATATYPES[name]; 
+    for(var name in CONSTANTS) to[name] = CONSTANTS[name];
+})(self);
+
 // Export functions
 self.define = define;
 self.option = option;
 self.encode = encode;
 self.decode = decode;
 self.struct = struct;
-self.export_to = export_to;
 self.DATATYPES = DATATYPES;
 self.CONSTANTS = CONSTANTS;
+
 
 })(datatypes);
