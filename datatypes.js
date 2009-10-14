@@ -4,7 +4,7 @@
 //  
 //  Read readme.txt for instructions and LICENSE license.
 //  
-//  Copyright (c) 2009 Johan Dahlberg <jfd@distrop.com>
+//  Copyright (c) 2009 Johan Dahlberg
 //
 var datatypes = {};
 try{ datatypes = exports } catch(e) {}; // Try to export the lib for node.js
