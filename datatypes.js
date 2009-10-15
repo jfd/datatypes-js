@@ -557,6 +557,7 @@ self.option = option;
 self.encode = encode;
 self.decode = decode;
 self.struct = struct;
+self.BufferPointer = BufferPointer;
 self.DATATYPES = DATATYPES;
 self.CONSTANTS = CONSTANTS;
 
