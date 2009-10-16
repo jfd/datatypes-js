@@ -29,6 +29,7 @@ var STRUCT_A = struct(
 // Encodes our struct into a byte array.
 //
 // Output: [18,52,67,86,35,85,72,101,108,108,111,32,87,111,114,108,100,0]
+
 var struct_a_bytes = STRUCT_A({body: "Hello World"});
 p(struct_a_bytes);
 
@@ -38,3 +39,20 @@ p(struct_a_bytes);
 var struct_a_decoded = STRUCT_A.to_dict(struct_a_bytes);
 p(struct_a_decoded);
 //, NO_ERROR_CHECK
+
+
+
+
+var STRUCT_B = struct (
+    
+    INT32,      0x11002,
+    INT32,      STRUCT_SIZE,
+    CSTRING,    DYNAMIC, 'value'
+);
+
+
+var struct_b_bytes = STRUCT_B({value: 'value'});
+p(struct_b_bytes);
+
+var struct_b_decoded = STRUCT_B.to_dict(struct_b_bytes);
+p(struct_b_decoded);
