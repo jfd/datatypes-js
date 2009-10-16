@@ -6,6 +6,9 @@
 //  
 //  Copyright (c) 2009 Johan Dahlberg
 //
+
+node.mixin(require("/utils.js"));
+
 var datatypes = {};
 try{ datatypes = exports } catch(e) {}; // Try to export the lib for node.js
 (function(self) {
@@ -20,9 +23,6 @@ var OPTION = 'option',
 // Special data sizes. 
 var FLEX_DATASIZE = -2;
 var DEFINED_DATASIZE = -1;
-
-// Struct-related constants
-var DYNAMIC = { _dtstruct: 'dynamic' };
 
 // Collections of datatypes and other constants.
 var DATATYPES = {},
@@ -87,7 +87,7 @@ function define() {
 }
 
 // Helper fucntion for the struct constructor. Returns a new constant field.
-function const_field(dt, name, value, opts) {
+function const_field(dt, value, name, opts) {
     var encoder = dt.choose_callback ? dt.encoder(null, opts) : dt.encoder,
         decoder = dt.choose_callback ? dt.decoder(null, null, null, opts) : dt.decoder;
     var decode, bytes = encoder(value, opts);
@@ -110,24 +110,18 @@ function const_field(dt, name, value, opts) {
     
     return {
         name: name,
-        encode_a: encode, 
-        encode_d: encode,
+        constant: true,
+        encode: encode, 
         decode: decode
     }
 }
 
 // Helper fucntion for the struct constructor. Returns a new dynamic field.
-function dynamic_field(dt, name, opts) {
+var DYNAMIC = { _dtstruct: 'custom_field', callback: function(dt, args, opts) {
+    var name = args.shift();
     var encoder = dt.choose_callback ? dt.encoder(null, opts) : dt.encoder,
         decoder = dt.choose_callback ? dt.decoder(null, null, null, opts) : dt.decoder;
-    
-    var encode_a = function(values) {
-        var value = values.shift();
-        return encoder(value, opts);
-    }
 
-    var encode_d = encoder;
-    
     var decode = function(buffer, pt) {
         var result = decoder(buffer, pt, dt.size, opts);
         return result;
@@ -135,11 +129,47 @@ function dynamic_field(dt, name, opts) {
     
     return {
         name: name,
-        encode_a: encode_a, 
-        encode_d: encode_d, 
+        constant: false,
+        encode: encoder, 
         decode: decode,
     }    
-}
+}};
+
+// Adds the struct size (in bytes) to the buffer after encoding
+var STRUCT_SIZE = { _dtstruct: 'custom_field', callback: function(dt, args, opts) {
+    if(dt != DATATYPES['INT16'] && dt != DATATYPES['INT32'] && dt != DATATYPES['BYTE']) {
+        throw 'STRUCT_SIZE only supports int16, int32 and byte.';
+    }
+    var encoder = dt.choose_callback ? dt.encoder(null, opts) : dt.encoder,
+        decoder = dt.choose_callback ? dt.decoder(null, null, null, opts) : dt.decoder;
+
+    // We are building a temporary buffer spot for this value, 
+    var encode = function(value, opts) {
+        return encoder(0, opts)
+    }
+    
+    var decode = function(buffer, pt) {
+        var result = decoder(buffer, pt, dt.size, opts);
+        return result;
+    }
+    
+    var after = function(buffer, pos) {
+        // Calculate the total number of bytes in the generated buffer and 
+        // encode it to bytes. Then replace the 
+        var bytes = encoder(buffer.length, opts);
+        var l = bytes.length;
+        for(var i = 0; i<l; i++) buffer[pos + i] =  bytes[i];
+        return buffer;
+    }
+    
+    return {
+        name: 'size',
+        constant: true,
+        after_encoding: after,
+        encode: encode, 
+        decode: decode,
+    }    
+}};
 
 // Defines a new data structure. A datastructure is a set of datatypes, with
 // a compiled call sequence to encoders and decoders.
@@ -155,10 +185,10 @@ function struct() {
             case DATATYPE:
             case STRUCT:
                 second = args.shift();
-                if(second._dtstruct == 'dynamic') {
-                    fields.push(dynamic_field(first, args.shift(), options));
+                if(second._dtstruct == 'custom_field') {
+                    fields.push(second.callback(first, args, options));
                 } else {
-                    fields.push(const_field(first, '_index' + fields.length, second, options));
+                    fields.push(const_field(first, second, '_index' + fields.length, options));
                 }
                 break;
             default:
@@ -174,20 +204,46 @@ function struct() {
     }
     
     datastruct.from_array = function(values) {
-        var result = [], l = fields.length;
+        var result = [], l = fields.length, after_callbacks = [];
         for(var i = 0; i < l; i++) {
-            result = result.concat(fields[i].encode_a(values));
+            var field = fields[i];
+            var value = field.constant ? null : values.shift();
+            var current_size  = result.length;
+            result = result.concat(field.encode(value));
+            if(field.after_encoding) {
+                after_callbacks.push({ field: field, pos: current_size});
+            }
         }
+        if(after_callbacks.length) {
+            var old_result = result.slice(0);
+            result = [];
+            for(var i=0; i<after_callbacks.length; i++) {
+                var o = after_callbacks[i];
+                result = result.concat(field.after_encoding(old_result, o.pos));
+            }
+        } 
         return result;
     }
     
     datastruct.from_dict = function(values) {
-        var result = [], l = fields.length;
+        var result = [], l = fields.length, after_callbacks = [];
         for(var i = 0; i < l; i++) {
             var field = fields[i];
             var value = values[field.name];
-            result = result.concat(field.encode_d(value));
+            var current_size  = result.length;
+            result = result.concat(field.encode(value));
+            if(field.after_encoding) {
+                after_callbacks.push({ field: field, pos: current_size});
+            }
         }
+        if(after_callbacks.length) {
+            var old_result = result.slice(0);
+            result = [];
+            for(var i=0; i<after_callbacks.length; i++) {
+                var o = after_callbacks[i];
+                result = result.concat(o.field.after_encoding(old_result, o.pos));
+            }
+        } 
         return result;
     }
     
@@ -436,7 +492,7 @@ function encode() {
                 result = result.concat(first(second.shift()));
                 break;
             default:
-                throw "Expected datatype, struct or option";
+                throw "Expected datatype, struct or option: " + first._dtclass;
                 break;
         }
     }
@@ -516,7 +572,7 @@ var constants = [
     ['DATATYPES', DATATYPES], ['CONSTANTS', CONSTANTS], 
     ['BIG_ENDIAN', BIG_ENDIAN], ['LITTLE_ENDIAN', LITTLE_ENDIAN], 
     ['ARRAY', ARRAY], ['DICT', DICT], ['ENCODERS', ENCODERS], 
-    ['DECODERS', DECODERS], ['DYNAMIC', DYNAMIC], 
+    ['DECODERS', DECODERS], ['DYNAMIC', DYNAMIC], ['STRUCT_SIZE', STRUCT_SIZE],
     ['NO_ERROR_CHECK', NO_ERROR_CHECK]
 ];
 
