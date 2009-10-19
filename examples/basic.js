@@ -15,14 +15,15 @@ node.mixin(datatypes.CONSTANTS);
 var bytes, value;
 
 // Encodes a number into a INT16. Should print: [48, 57]
-bytes = datatypes.encode(INT16, 12345);
+bytes = datatypes.encode(int16, 12345);
 p(bytes);
 
+
 // Decode the bytes back to an dict. Should print: {"number":12345}
-value = datatypes.decode(bytes, INT16, 'number');
+value = datatypes.decode(bytes, int16, 'number');
 p(value);
 
 // Decode the bytes back to an array with value. Should print: [12345]
-value = datatypes.decode(bytes, ARRAY, INT16);
+value = datatypes.decode(bytes, ARRAY, int16);
 p(value);
 

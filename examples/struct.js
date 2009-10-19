@@ -21,10 +21,12 @@ var STRUCT_A = struct(
     BIG_ENDIAN,
     
     // Declaration
-    INT32,      MAGIC, 
-    INT16,      VERSION,
-    CSTRING,    DYNAMIC, 'body' 
+    int32,      MAGIC, 
+    int16,      VERSION,
+    cstring,    dynamic, 'body' 
 );
+
+
 
 // Encodes our struct into a byte array.
 //
@@ -45,9 +47,9 @@ p(struct_a_decoded);
 
 var STRUCT_B = struct (
     
-    INT32,      0x11002,
-    INT32,      STRUCT_SIZE,
-    CSTRING,    DYNAMIC, 'value'
+    int32,      0x11002,
+    int32,      struct_size,
+    cstring,    dynamic, 'value'
 );
 
 

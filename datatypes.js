@@ -6,9 +6,6 @@
 //  
 //  Copyright (c) 2009 Johan Dahlberg
 //
-
-node.mixin(require("/utils.js"));
-
 var datatypes = {};
 try{ datatypes = exports } catch(e) {}; // Try to export the lib for node.js
 (function(self) {
@@ -137,7 +134,7 @@ var DYNAMIC = { _dtstruct: 'custom_field', callback: function(dt, args, opts) {
 
 // Adds the struct size (in bytes) to the buffer after encoding
 var STRUCT_SIZE = { _dtstruct: 'custom_field', callback: function(dt, args, opts) {
-    if(dt != DATATYPES['INT16'] && dt != DATATYPES['INT32'] && dt != DATATYPES['BYTE']) {
+    if(dt != DATATYPES['int16'] && dt != DATATYPES['int32'] && dt != DATATYPES['byte']) {
         throw 'STRUCT_SIZE only supports int16, int32 and byte.';
     }
     var encoder = dt.choose_callback ? dt.encoder(null, opts) : dt.encoder,
@@ -572,7 +569,7 @@ var constants = [
     ['DATATYPES', DATATYPES], ['CONSTANTS', CONSTANTS], 
     ['BIG_ENDIAN', BIG_ENDIAN], ['LITTLE_ENDIAN', LITTLE_ENDIAN], 
     ['ARRAY', ARRAY], ['DICT', DICT], ['ENCODERS', ENCODERS], 
-    ['DECODERS', DECODERS], ['DYNAMIC', DYNAMIC], ['STRUCT_SIZE', STRUCT_SIZE],
+    ['DECODERS', DECODERS], ['dynamic', DYNAMIC], ['struct_size', STRUCT_SIZE],
     ['NO_ERROR_CHECK', NO_ERROR_CHECK]
 ];
 
@@ -582,7 +579,7 @@ var constants = [
     while(dtindex-- > 0) {
         var type = defs[dtindex];
         var name = type[0];
-        var uname = name.toUpperCase();
+        var uname = name;
         var size = type[1];
         var prefix = '';
         var ctor_args = [size];

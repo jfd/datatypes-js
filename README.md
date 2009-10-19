@@ -19,13 +19,13 @@ Here is a quick example what datatype-js can do:
 	include('datatypes.js');
 	
 	// Encodes a Javascript String object into a byte array.
-	var buffer = encode(CSTRING, 'Hello World!');
+	var buffer = encode(cstring, 'Hello World!');
 
 	// Prints [?,?,?,?,?,?,?,?,?,?,?] to the screen;
 	puts(buffer);
 	
 	// Decode the buffer into a Javascript String object.
-	var result = decode(buffer, CSTRING);
+	var result = decode(buffer, cstring);
 	
 	// Prints "Hello World!" to the screen;
 	puts(result);
@@ -37,11 +37,11 @@ The library has a set of pre-defined decoders and encoders for the most regular
 datatypes. Each datatype is represented by a constant. Here is a list with 
 currently pre-defined datatypes:
 
-- **BYTE**, A byte value.
-- **BYTES**, An array with one or more bytes.
-- **INT16**, An 2-byte integer.
-- **INT32**, An 2-byte integer.
-- **CSTRING**, A null-terminated string. 
+- **byte**, A byte value.
+- **bytes**, An array with one or more bytes.
+- **int16**, An 2-byte integer.
+- **int32**, An 2-byte integer.
+- **cstring**, A null-terminated string. 
 
 It's easy to define your own encoder/decoder if you are missing a datatype. To 
 do so you can simple call the ´´define´´ function: 
@@ -50,7 +50,7 @@ do so you can simple call the ´´define´´ function:
 	node.mixin(require('../datatypes.js'));
 
 	// Define a custom 2-byte datatype.
-	var MY_DATATYPE = define(
+	var my_datatype = define(
 		
 		// Set's the size of the datatype. Other valid values are: FLEX_DATASIZE
 		// and DEFINED_DATASIZE. See notes below for more information. 
@@ -69,16 +69,16 @@ do so you can simple call the ´´define´´ function:
 		
 	);
 	
-Actually, the example above is the INT16 datatype. 
+Actually, the example above is the int16 datatype. 
 
 There is three valid sizes to use:
 
 - **positive integer**, Set's a fixed size. The encoder MUST always return an 
 						byte-array with the length equal to the specified size.
-- **DEFINED_DATASIZE**, The size is defined by user. For example, the BYTES uses a 
+- **DEFINED_DATASIZE**, The size is defined by user. For example, the byteS uses a 
 						defined data size.
 - **FLEX_DATASIZE**, 	The data size is flexible. The actual size is 
-						controlled by the datatype. The CSTRING type for 
+						controlled by the datatype. The cstring type for 
 						example, uses an flexible data size. The null-
 						terminator indicates where to stop reading the buffer.
 
@@ -94,9 +94,9 @@ For our first example, we will encode a set of number into a byte array.
 	var buffer = encode(
 	
 		// Datatype to the right and value to the left
-		INT32, 123456789,
-		INT16, 12345,
-		CSTRING, 'Hello world'
+		int32, 123456789,
+		int16, 12345,
+		cstring, 'Hello world'
 	);
 	
 	// Prints [?,?,?,?,?,?,?,?,?,?,? ] in the console. 
@@ -117,9 +117,9 @@ specifying a built-in encoding option:
 		// Set's the byte-order to little-endian. 
 		LITTLE_ENDIAN,
 		
-		INT32, 123456789,
-		INT16, 12345,
-		CSTRING, 'Hello world'
+		int32, 123456789,
+		int16, 12345,
+		cstring, 'Hello world'
 	);
 
 	// Prints [?,?,?,?,?,?,?,?,?,?,? ] in the console. 
@@ -150,9 +150,9 @@ To decode the newly buffer, we simply call the decode function:
 		
 		// The field order, and a name that represents each value in the
 		// result.
-		INT32, 'int32_value',
-		INT16, 'int16_value',
-		CSTRING, 'string_value'
+		int32, 'int32_value',
+		int16, 'int16_value',
+		cstring, 'string_value'
 	);
 	
 	// Print's "{int32_value: 123456789, int16_value: 12345, 
@@ -179,7 +179,7 @@ option:
 		
 		// Because we decode the result into an array, we do not need to declare 
 		// any names for the fields.
-		INT32, INT16, CSTRING
+		int32, int16, cstring
 	);
 	
 	// Print's "[123456789, 12345, 'Hello world']
