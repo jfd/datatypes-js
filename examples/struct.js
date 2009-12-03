@@ -4,10 +4,10 @@
 //
 
 // Import all predefined datatypes and constants.
-node.mixin(require("../datatypes.js"));
+process.mixin(require("../datatypes"));
 
 // Import utils
-node.mixin(require("/utils.js"));
+process.mixin(require("utils"));
 
 // Demo constants
 var MAGIC = 0x12344356;
