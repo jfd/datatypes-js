@@ -1,5 +1,9 @@
-datatype-js
-===========
+datatypes-js
+============
+
+ATTENTION:
+
+	This version of datatypes-js is not supported by Node-js. If you are planing to use this library with Node-js, please checkout the branch named "nodejs".
 
 Byte encoder and decoder for typical datatypes implemented in Javascript.
 
