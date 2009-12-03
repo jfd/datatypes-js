@@ -109,7 +109,8 @@ function const_field(dt, value, name, opts) {
         name: name,
         constant: true,
         encode: encode, 
-        decode: decode
+        decode: decode,
+        value: value
     }
 }
 
