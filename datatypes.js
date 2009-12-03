@@ -476,7 +476,7 @@ var DECODERS = {
         var bl = b.length, start = pt.pos;
         while(pt.pos < bl && b.charCodeAt(pt.pos++) != 0) {
         }
-        return b.substr(start, pt.pos - start);
+        return b.substr(start, pt.pos - start - 1);
     }
 }
 
