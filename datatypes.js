@@ -267,6 +267,8 @@ function struct() {
         return result;
     }
     
+    datastruct._fields = fields;
+    
     return datastruct;
 }
 
