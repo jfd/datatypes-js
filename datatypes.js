@@ -216,7 +216,7 @@ function struct() {
             result = [];
             for(var i=0; i<after_callbacks.length; i++) {
                 var o = after_callbacks[i];
-                result = result.concat(field.after_encoding(old_result, o.pos));
+                result = result.concat(o.field.after_encoding(old_result, o.pos));
             }
         } 
         return result;
