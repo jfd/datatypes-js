@@ -85,12 +85,12 @@ function define() {
 
 // Helper fucntion for the struct constructor. Returns a new constant field.
 function const_field(dt, value, name, opts) {
-    var encoder = dt.choose_callback ? dt.encoder(null, opts) : dt.encoder,
+    var encoder = dt.choose_callback ? dt.encoder(null, null, opts) : dt.encoder,
         decoder = dt.choose_callback ? dt.decoder(null, null, null, opts) : dt.decoder;
-    var decode, bytes = encoder(value, opts);
-    
-    var encode = function(values) {
-        return bytes;
+    var decode, bytes = [];
+    encoder(bytes, value, opts);
+    var encode = function(b, values) {
+        b.push(bytes.join(''));
     }
     
     if(opts.no_error_check) {
@@ -116,7 +116,7 @@ function const_field(dt, value, name, opts) {
 // Helper fucntion for the struct constructor. Returns a new dynamic field.
 var DYNAMIC = { _dtstruct: 'custom_field', callback: function(dt, args, opts) {
     var name = args.shift();
-    var encoder = dt.choose_callback ? dt.encoder(null, opts) : dt.encoder,
+    var encoder = dt.choose_callback ? dt.encoder(null, null, opts) : dt.encoder,
         decoder = dt.choose_callback ? dt.decoder(null, null, null, opts) : dt.decoder;
 
     var decode = function(buffer, pt) {
@@ -137,12 +137,12 @@ var STRUCT_SIZE = { _dtstruct: 'custom_field', callback: function(dt, args, opts
     if(dt != DATATYPES['int16'] && dt != DATATYPES['int32'] && dt != DATATYPES['byte']) {
         throw 'STRUCT_SIZE only supports int16, int32 and byte.';
     }
-    var encoder = dt.choose_callback ? dt.encoder(null, opts) : dt.encoder,
+    var encoder = dt.choose_callback ? dt.encoder(null, null, opts) : dt.encoder,
         decoder = dt.choose_callback ? dt.decoder(null, null, null, opts) : dt.decoder;
 
     // We are building a temporary buffer spot for this value, 
-    var encode = function(value, opts) {
-        return encoder(0, opts)
+    var encode = function(b, value, opts) {
+        return encoder(b, 0, opts)
     }
     
     var decode = function(buffer, pt) {
@@ -153,10 +153,10 @@ var STRUCT_SIZE = { _dtstruct: 'custom_field', callback: function(dt, args, opts
     var after = function(buffer, pos) {
         // Calculate the total number of bytes in the generated buffer and 
         // encode it to bytes. Then replace the 
-        var bytes = encoder(buffer.length, opts);
+        var bytes = [];
+        encoder(bytes, buffer.length, opts);
         var l = bytes.length;
-        for(var i = 0; i<l; i++) buffer[pos + i] =  bytes[i];
-        return buffer;
+        return buffer.substr(0, pos) + bytes.join('') + buffer.substr(pos + l);
     }
     
     return {
@@ -206,20 +206,22 @@ function struct() {
             var field = fields[i];
             var value = field.constant ? null : values.shift();
             var current_size  = result.length;
-            result = result.concat(field.encode(value));
+            field.encode(result, value);
             if(field.after_encoding) {
                 after_callbacks.push({ field: field, pos: current_size});
             }
         }
         if(after_callbacks.length) {
-            var old_result = result.slice(0);
-            result = [];
+            var old_result = result.join('');
+            result = '';
             for(var i=0; i<after_callbacks.length; i++) {
                 var o = after_callbacks[i];
-                result = result.concat(o.field.after_encoding(old_result, o.pos));
+                result = o.field.after_encoding(old_result, o.pos);
             }
-        } 
-        return result;
+            return result;
+        } else {
+            return result.join('');
+        }
     }
     
     datastruct.from_dict = function(values) {
@@ -228,20 +230,22 @@ function struct() {
             var field = fields[i];
             var value = values[field.name];
             var current_size  = result.length;
-            result = result.concat(field.encode(value));
+            field.encode(result, value);
             if(field.after_encoding) {
                 after_callbacks.push({ field: field, pos: current_size});
             }
         }
         if(after_callbacks.length) {
-            var old_result = result.slice(0);
-            result = [];
+            var old_result = result.join('');
+            result = '';
             for(var i=0; i<after_callbacks.length; i++) {
                 var o = after_callbacks[i];
-                result = result.concat(o.field.after_encoding(old_result, o.pos));
+                result = o.field.after_encoding(old_result, o.pos);
             }
-        } 
-        return result;
+            return result;
+        } else {
+            return result.join('');
+        }
     }
     
     datastruct.to_array = function(buffer, pt) {
@@ -349,50 +353,57 @@ var ENCODERS = {
     
     // Encodes bytes. If the v argument is a number, then the number is wrapped 
     // within an array. If not, the v argument is asumed to be an array with bytes.
-    bytes: function(v) {
-        return v.constructor === Number ? [v] : v;
+    bytes: function(b, v) {
+        b.push(v);
     },
     
     // Returns an int16 encoder based on the bigendian option
-    get_int16: function(v, opts) {
+    get_int16: function(b, v, opts) {
         return opts.little_endian ? ENCODERS.int16l : ENCODERS.int16;
     },
 
     // Encodes an Int16 into big-endian format.
-    int16: function(v) {
-        return [(v >> 8) & 0xff, (v & 0xff)];
+    int16: function(b, v) {
+        b.push(String.fromCharCode((v >> 8) & 0xff));
+        b.push(String.fromCharCode(v & 0xff));
     },
     
     // Encodes an Int16 into little-endian format.
-    int16l: function(v) {
-        return [(v & 0xff), (v >> 8) & 0xff];
+    int16l: function(b, v) {
+        b.push(String.fromCharCode(v & 0xff));
+        b.push(String.fromCharCode((v >> 8) & 0xff));
     },
 
     // Returns an int32 encoder based on the bigendian option
-    get_int32: function(v, opts) {
+    get_int32: function(b, v, opts) {
         return opts.little_endian ? ENCODERS.int32l : ENCODERS.int32;
     },
 
     // Encodes an Int32 into big-endian format.
-    int32: function(v) {
-        return [ (v >> 24) & 0xff, (v >> 16) & 0xff, (v >> 8) & 0xff, (v & 0xff) ];
+    int32: function(b, v) {
+        b.push(String.fromCharCode((v >> 24) & 0xff));
+        b.push(String.fromCharCode((v >> 16) & 0xff));
+        b.push(String.fromCharCode((v >> 8) & 0xff));
+        b.push(String.fromCharCode(v & 0xff));
     },
 
     // Encodes an Int32 into little-endian format.
-    int32l: function (v) {
-        return [ (v & 0xff), (v >> 8) & 0xff, (v >> 16) & 0xff, (v >> 24) & 0xff ];
+    int32l: function (b, v) {
+        b.push(String.fromCharCode(v & 0xff));
+        b.push(String.fromCharCode((v >> 8) & 0xff));
+        b.push(String.fromCharCode((v >> 16) & 0xff));
+        b.push(String.fromCharCode((v >> 24) & 0xff));
     },
     
     // Encodes an 8-bit char-string.
-    string8: function(v) {
-        var result = [], l = v.length;
-        for(var i = 0; i < l; i++) result.push(v.charCodeAt(i));
-        return result;
+    string8: function(b, v) {
+        b.push(v);
     },
     
     // Encodes an 8-bit char null-terminated string.
-    cstring: function(v) {
-        return ENCODERS.string8(v).concat([0]);
+    cstring: function(b, v) {
+        b.push(v);
+        b.push(String.fromCharCode(0));
     }
     
 }
@@ -416,7 +427,7 @@ var DECODERS = {
         if(length == 1) return buffer[pointer.pos++];
         var pos = pointer.pos;
         pointer.pos += length;
-        return buffer.slice(pos, length);
+        return buffer.substr(pos, length);
     },
     
     // Returns an int16 decoder based on the bigendian option
@@ -453,7 +464,7 @@ var DECODERS = {
     string8: function(b, pt, l) {
         var result = [], i = index, bl = b.length, v;
         while(pt.pos < l && pt.pos < bl) {
-            result.push(String.fromCharCode(v));
+            result.push(v);
             pt.pos++;
         }
         return result.join('');
@@ -463,7 +474,7 @@ var DECODERS = {
     cstring: function(b, pt) {
         var result = [], bl = b.length, v;
         while(pt.pos < bl && (v = b[pt.pos++]) != 0) {
-            result.push(String.fromCharCode(v));
+            result.push(v);
         }
         return result.join('');
     }
@@ -481,19 +492,19 @@ function encode() {
             case DATATYPE:
                 second = args.shift();
                 encoder = first.choose_callback ? 
-                          first.encoder(second, options) :
+                          first.encoder(null, second, options) :
                           first.encoder;
-                result = result.concat(encoder(second, options));
+                encoder(result, second, options);
                 break;
             case STRUCT:
-                result = result.concat(first(second.shift()));
+                first(result, second.shift());
                 break;
             default:
                 throw "Expected datatype, struct or option: " + first._dtclass;
                 break;
         }
     }
-    return result;
+    return result.join('');
 }
 
 // Decodes a set of bytes into a javascript object.
