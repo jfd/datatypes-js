@@ -6,6 +6,7 @@
 //  
 //  Copyright (c) 2009 Johan Dahlberg
 //
+
 var datatypes = {};
 try{ datatypes = exports } catch(e) {}; // Try to export the lib for node.js
 (function(self) {
@@ -143,7 +144,7 @@ var STRUCT_SIZE = { _dtstruct: 'custom_field', callback: function(dt, args, opts
 
     // We are building a temporary buffer spot for this value, 
     var encode = function(b, value, opts) {
-        return encoder(b, 0, opts)
+        encoder(b, 0, opts)
     }
     
     var decode = function(buffer, pt) {
@@ -206,7 +207,7 @@ function struct() {
         for(var i = 0; i < l; i++) {
             var field = fields[i];
             var value = field.constant ? null : values.shift();
-            var current_size  = result.length;
+            var current_size  = result.join('').length;
             field.encode(result, value);
             if(field.after_encoding) {
                 after_callbacks.push({ field: field, pos: current_size});
@@ -230,7 +231,7 @@ function struct() {
         for(var i = 0; i < l; i++) {
             var field = fields[i];
             var value = values[field.name];
-            var current_size  = result.length;
+            var current_size  = result.join('').length;
             field.encode(result, value);
             if(field.after_encoding) {
                 after_callbacks.push({ field: field, pos: current_size});
@@ -440,12 +441,12 @@ var DECODERS = {
     
     // Decodes an Int16 in big-endian format.
     int16: function(b, pt) {
-        return (b[pt.pos++] << 8) | (b[pt.pos++]);
+        return (b.charCodeAt(pt.pos++) << 8) | (b.charCodeAt(pt.pos++));
     },
     
     // Decodes an Int16 in little-endian format.
     int16l: function(b, pt) {
-        return (b[pt.pos++]) | (b[pt.pos++] << 8);
+        return (b.charCodeAt(pt.pos++)) | (b.charCodeAt(pt.pos++) << 8);
     },
 
     // Returns an int32 decoder based on the bigendian option
@@ -455,31 +456,27 @@ var DECODERS = {
 
     // Decodes an Int32 in big-endian format.
     int32: function(b, pt) {
-        return (b[pt.pos++] << 24) |  (b[pt.pos++] << 16) | (b[pt.pos++] << 8) | (b[pt.pos++]);
+        return (b.charCodeAt(pt.pos++) << 24) |  (b.charCodeAt(pt.pos++) << 16) | (b.charCodeAt(pt.pos++) << 8) | (b.charCodeAt(pt.pos++));
     },
 
     // Decodes an Int32 in little-endian format.
     int32l: function(b, pt) {
-        return (b[pt.pos++]) | (b[pt.pos++] << 8) |  (b[pt.pos++] << 16) | (b[pt.pos++] << 24);
+        return (b.charCodeAt(pt.pos++)) | (b.charCodeAt(pt.pos++) << 8) |  (b.charCodeAt(pt.pos++) << 16) | (b.charCodeAt(pt.pos++) << 24);
     },
     
     // Decodes an 8-bit char-string.
     string8: function(b, pt, l) {
-        var result = [], i = index, bl = b.length, v;
-        while(pt.pos < l && pt.pos < bl) {
-            result.push(v);
-            pt.pos++;
-        }
-        return result.join('');
+        var result = b.substr(pt.pos, l);
+        pt.pos += l;
+        return result;
     },
     
     // Decodes an 8-bit char null-terminated string.
     cstring: function(b, pt) {
-        var result = [], bl = b.length, v;
-        while(pt.pos < bl && (v = b[pt.pos++]) != 0) {
-            result.push(v);
+        var bl = b.length, start = pt.pos;
+        while(pt.pos < bl && b.charCodeAt(pt.pos++) != 0) {
         }
-        return result.join('');
+        return b.substr(start, pt.pos - start);
     }
 }
 
