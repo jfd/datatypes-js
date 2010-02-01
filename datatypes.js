@@ -89,7 +89,9 @@ function const_field(dt, value, name, opts) {
     var encoder = dt.choose_callback ? dt.encoder(null, null, opts) : dt.encoder,
         decoder = dt.choose_callback ? dt.decoder(null, null, null, opts) : dt.decoder;
     var decode, bytes = [];
+
     encoder(bytes, value, opts);
+
     var encode = function(b, values) {
         b.push(bytes.join(''));
     }
@@ -354,6 +356,12 @@ BufferPointer.prototype = {
 // All built-in encoders can be accessd through the ENCODERS member in the
 // exported module. 
 var ENCODERS = {
+
+    // Encodes bytes. If the v argument is a number, then the number is wrapped 
+    // within an array. If not, the v argument is asumed to be an array with bytes.
+    byte: function(b, v) {
+        b.push(v);
+    },
     
     // Encodes bytes. If the v argument is a number, then the number is wrapped 
     // within an array. If not, the v argument is asumed to be an array with bytes.
@@ -425,6 +433,11 @@ var ENCODERS = {
 // All built-in decoders can be accessd through the ENCODERS member in the
 // exported module.
 var DECODERS = {
+
+    // Decodes an byte array.
+    byte: function(buffer, pointer, length) {
+        return buffer[pointer.pos++];
+    },
     
     // Decodes an byte array.
     bytes: function(buffer, pointer, length) {
